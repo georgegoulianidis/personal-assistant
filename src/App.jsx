@@ -534,7 +534,6 @@ export default function App() {
                       </button>
                       <button
                         onClick={() => removeTask(t.id)}
-                        className="opacity-0 group-hover:opacity-100 transition"
                         style={{ color: "#9a8f7a" }}
                         title="Delete"
                       >
