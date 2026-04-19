@@ -527,7 +527,6 @@ export default function App() {
                       )}
                       <button
                         onClick={() => startEditTask(t)}
-                        className="opacity-0 group-hover:opacity-100 transition"
                         style={{ color: "#7a7260" }}
                         title="Edit"
                       >
