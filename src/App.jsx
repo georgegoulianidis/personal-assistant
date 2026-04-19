@@ -39,6 +39,8 @@ export default function App() {
   const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState("");
   const [justAddedTask, setJustAddedTask] = useState(null);
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editTaskText, setEditTaskText] = useState("");
 
   // Notes state
   const [notes, setNotes] = useState([]);
@@ -120,6 +122,21 @@ export default function App() {
   const toggleTask = (id) =>
     saveTasks(tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
   const removeTask = (id) => saveTasks(tasks.filter((t) => t.id !== id));
+  const startEditTask = (t) => {
+    setEditingTaskId(t.id);
+    setEditTaskText(t.text);
+  };
+  const saveEditTask = () => {
+    const text = editTaskText.trim();
+    if (!text) return;
+    saveTasks(tasks.map((t) => (t.id === editingTaskId ? { ...t, text } : t)));
+    setEditingTaskId(null);
+    setEditTaskText("");
+  };
+  const cancelEditTask = () => {
+    setEditingTaskId(null);
+    setEditTaskText("");
+  };
 
   // --- Notes ---
   const addNote = () => {
@@ -443,44 +460,89 @@ export default function App() {
                   >
                     {t.done && <Check size={12} strokeWidth={3} style={{ color: "#f5f1e8" }} />}
                   </button>
-                  <span
-                    className="flex-1 text-[15px]"
-                    style={{
-                      color: t.done ? "#9a8f7a" : "#2b2820",
-                      textDecoration: t.done ? "line-through" : "none",
-                    }}
-                  >
-                    {t.text}
-                  </span>
-                  {!t.done && (
-                    <button
-                      onClick={() => {
-                        const parsed = parseDateFromText(t.text);
-                        const matched = findMatchingContacts(t.text);
-                        setEventDraft({
-                          title: t.text,
-                          date: parsed.date || todayISO,
-                          time: parsed.time || "10:00",
-                          duration: 60,
-                          location: "",
-                          guests: matched.map((c) => c.email),
-                        });
-                        setShowEventForm(true);
-                      }}
-                      className="opacity-60 hover:opacity-100 transition"
-                      style={{ color: "#7a7260" }}
-                      title="Schedule this"
-                    >
-                      <CalendarPlus size={15} strokeWidth={1.8} />
-                    </button>
+                  {editingTaskId === t.id ? (
+                    <>
+                      <input
+                        value={editTaskText}
+                        onChange={(e) => setEditTaskText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEditTask();
+                          else if (e.key === "Escape") cancelEditTask();
+                        }}
+                        placeholder="Task…"
+                        className="flex-1 min-w-0 px-3 py-1.5 rounded-lg outline-none text-[15px]"
+                        style={{ background: "#f5f1e8", border: "1px solid #e8e1cf", color: "#2b2820" }}
+                        autoFocus
+                      />
+                      <button
+                        onClick={saveEditTask}
+                        disabled={!editTaskText.trim()}
+                        className="transition disabled:opacity-30"
+                        style={{ color: "#2b2820" }}
+                        title="Save"
+                      >
+                        <Check size={16} strokeWidth={2} />
+                      </button>
+                      <button
+                        onClick={cancelEditTask}
+                        className="transition"
+                        style={{ color: "#9a8f7a" }}
+                        title="Cancel"
+                      >
+                        <X size={16} strokeWidth={1.8} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span
+                        className="flex-1 text-[15px]"
+                        style={{
+                          color: t.done ? "#9a8f7a" : "#2b2820",
+                          textDecoration: t.done ? "line-through" : "none",
+                        }}
+                      >
+                        {t.text}
+                      </span>
+                      {!t.done && (
+                        <button
+                          onClick={() => {
+                            const parsed = parseDateFromText(t.text);
+                            const matched = findMatchingContacts(t.text);
+                            setEventDraft({
+                              title: t.text,
+                              date: parsed.date || todayISO,
+                              time: parsed.time || "10:00",
+                              duration: 60,
+                              location: "",
+                              guests: matched.map((c) => c.email),
+                            });
+                            setShowEventForm(true);
+                          }}
+                          className="opacity-60 hover:opacity-100 transition"
+                          style={{ color: "#7a7260" }}
+                          title="Schedule this"
+                        >
+                          <CalendarPlus size={15} strokeWidth={1.8} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => startEditTask(t)}
+                        className="opacity-0 group-hover:opacity-100 transition"
+                        style={{ color: "#7a7260" }}
+                        title="Edit"
+                      >
+                        <Pencil size={14} strokeWidth={1.8} />
+                      </button>
+                      <button
+                        onClick={() => removeTask(t.id)}
+                        className="opacity-0 group-hover:opacity-100 transition"
+                        style={{ color: "#9a8f7a" }}
+                        title="Delete"
+                      >
+                        <X size={16} strokeWidth={1.8} />
+                      </button>
+                    </>
                   )}
-                  <button
-                    onClick={() => removeTask(t.id)}
-                    className="opacity-0 group-hover:opacity-100 transition"
-                    style={{ color: "#9a8f7a" }}
-                  >
-                    <X size={16} strokeWidth={1.8} />
-                  </button>
                 </li>
               ))}
             </ul>
