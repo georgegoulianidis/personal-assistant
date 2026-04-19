@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Plus, Check, X, ListTodo, StickyNote, Trash2, CalendarPlus, Users, AtSign, Pencil, ClipboardPaste, Search, Download, AlertCircle } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Plus, Check, X, ListTodo, StickyNote, Trash2, CalendarPlus, Users, AtSign, Pencil, ClipboardPaste, Search, Download, AlertCircle, Upload } from "lucide-react";
 
 const fontStyle = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Inter:wght@300;400;500;600&display=swap');
@@ -56,6 +56,8 @@ export default function App() {
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [bulkText, setBulkText] = useState("");
   const [contactSearch, setContactSearch] = useState("");
+  const [importSummary, setImportSummary] = useState(null); // null | { imported, dupSkipped, invalidSkipped, error? }
+  const csvFileInputRef = useRef(null);
 
   // --- Load persisted data on mount ---
   useEffect(() => {
@@ -214,6 +216,87 @@ export default function App() {
     saveContacts(next);
     setBulkText("");
     setShowBulkImport(false);
+  };
+
+  // CSV contact import — accepts common name/email column headers (Google, Outlook, Apple, etc.)
+  const handleImportCSV = async (file) => {
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    try {
+      const text = await file.text();
+      const rows = parseCSV(text);
+      if (rows.length < 2) {
+        setImportSummary({ error: "Couldn't parse the file. Make sure it's a valid CSV with a header row." });
+        return;
+      }
+      const header = rows[0].map((h) => (h || "").trim().toLowerCase());
+      const findCol = (candidates) => {
+        for (const label of candidates) {
+          const idx = header.indexOf(label.toLowerCase());
+          if (idx !== -1) return idx;
+        }
+        return -1;
+      };
+      const emailIdx = findCol([
+        "e-mail 1 - value", "email", "e-mail", "email address", "e-mail address",
+        "primary email", "email 1", "work email", "home email",
+      ]);
+      const nameIdx = findCol(["name", "full name", "display name", "contact name"]);
+      const givenIdx = findCol(["given name", "first name"]);
+      const familyIdx = findCol(["family name", "last name", "surname"]);
+
+      if (emailIdx === -1) {
+        setImportSummary({ error: "This CSV doesn't have an email column. Expected a header like Email or E-mail 1 - Value." });
+        return;
+      }
+      if (nameIdx === -1 && givenIdx === -1 && familyIdx === -1) {
+        setImportSummary({ error: "This CSV doesn't have a name column. Expected Name, Full Name, or Given/Family Name." });
+        return;
+      }
+
+      const existing = new Set(contacts.map((c) => c.email.toLowerCase()));
+      const pending = new Set();
+      const fresh = [];
+      let dupSkipped = 0;
+      let invalidSkipped = 0;
+      const now = Date.now();
+
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.every((c) => (c || "").trim() === "")) continue;
+
+        const emailRaw = row[emailIdx] ? row[emailIdx].trim() : "";
+        // Some exports stuff multiple emails into one cell joined by " ::: " (Google) or ";" (Outlook)
+        const email = emailRaw.split(/\s*(?::::|;)\s*/)[0].trim();
+        if (!email || !emailRe.test(email)) {
+          invalidSkipped++;
+          continue;
+        }
+        const emailKey = email.toLowerCase();
+        if (existing.has(emailKey) || pending.has(emailKey)) {
+          dupSkipped++;
+          continue;
+        }
+
+        let name = nameIdx >= 0 && row[nameIdx] ? row[nameIdx].trim() : "";
+        if (!name) {
+          const given = givenIdx >= 0 && row[givenIdx] ? row[givenIdx].trim() : "";
+          const family = familyIdx >= 0 && row[familyIdx] ? row[familyIdx].trim() : "";
+          name = [given, family].filter(Boolean).join(" ").trim();
+        }
+        if (!name) name = email.split("@")[0];
+
+        fresh.push({ id: now + fresh.length, name, email });
+        pending.add(emailKey);
+      }
+
+      if (fresh.length > 0) {
+        saveContacts([...contacts, ...fresh]);
+      }
+      setImportSummary({ imported: fresh.length, dupSkipped, invalidSkipped });
+    } catch (e) {
+      console.error("CSV import error", e);
+      setImportSummary({ error: "Couldn't parse the file. Make sure it's a valid CSV with a header row." });
+    }
   };
 
   // Cross-script normalizer: Greek → Latin, strip diacritics, lowercase
@@ -635,7 +718,7 @@ export default function App() {
               <p className="text-sm flex-1" style={{ color: "#7a7260" }}>
                 Add people you mention often. They'll be auto-detected in tasks and added as calendar guests.
               </p>
-              <div className="flex gap-2 flex-shrink-0">
+              <div className="flex flex-wrap gap-2 justify-end flex-shrink-0">
                 {contacts.length > 0 && (
                   <button
                     onClick={exportContacts}
@@ -655,6 +738,26 @@ export default function App() {
                   <ClipboardPaste size={12} strokeWidth={1.8} />
                   Paste list
                 </button>
+                <button
+                  onClick={() => csvFileInputRef.current?.click()}
+                  className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-full transition"
+                  style={{ background: "#ebe4d3", color: "#2b2820" }}
+                  title="Import contacts from a CSV file"
+                >
+                  <Upload size={12} strokeWidth={1.8} />
+                  Import CSV
+                </button>
+                <input
+                  ref={csvFileInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImportCSV(file);
+                    e.target.value = "";
+                  }}
+                />
               </div>
             </div>
             <div className="space-y-2 mb-5">
@@ -1005,6 +1108,58 @@ export default function App() {
           </div>
         </div>
       )}
+      {/* Import summary modal */}
+      {importSummary && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+          style={{ background: "rgba(43,40,32,0.4)", backdropFilter: "blur(4px)" }}
+          onClick={() => setImportSummary(null)}
+        >
+          <div
+            className="w-full max-w-md p-5 rounded-2xl"
+            style={{ background: "#f5f1e8", border: "1px solid #d6cfc2" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] tracking-[0.2em] uppercase" style={{ color: "#9a8f7a" }}>
+                {importSummary.error ? "Import failed" : "Import complete"}
+              </p>
+              <button onClick={() => setImportSummary(null)} style={{ color: "#7a7260" }}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="text-sm space-y-1.5" style={{ color: "#2b2820" }}>
+              {importSummary.error ? (
+                <p>{importSummary.error}</p>
+              ) : (
+                <>
+                  <p>
+                    <span className="font-display text-base">{importSummary.imported}</span>{" "}
+                    {importSummary.imported === 1 ? "contact imported" : "contacts imported"}.
+                  </p>
+                  {importSummary.dupSkipped > 0 && (
+                    <p style={{ color: "#7a7260" }}>
+                      {importSummary.dupSkipped} duplicate{importSummary.dupSkipped === 1 ? "" : "s"} skipped.
+                    </p>
+                  )}
+                  {importSummary.invalidSkipped > 0 && (
+                    <p style={{ color: "#7a7260" }}>
+                      {importSummary.invalidSkipped} row{importSummary.invalidSkipped === 1 ? "" : "s"} with missing/invalid email skipped.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+            <button
+              onClick={() => setImportSummary(null)}
+              className="w-full mt-4 py-2.5 rounded-full text-sm transition"
+              style={{ background: "#2b2820", color: "#f5f1e8" }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1015,6 +1170,53 @@ function greeting() {
   if (h < 12) return "morning";
   if (h < 18) return "afternoon";
   return "evening";
+}
+
+// Minimal RFC 4180-style CSV parser. Handles quoted fields, escaped quotes (""),
+// commas inside quotes, and CRLF/LF line endings. Strips a leading UTF-8 BOM.
+function parseCSV(text) {
+  if (!text) return [];
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ",") {
+        row.push(field);
+        field = "";
+      } else if (ch === "\n") {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = "";
+      } else if (ch === "\r") {
+        // swallow; \n handles the row break
+      } else {
+        field += ch;
+      }
+    }
+  }
+  if (field !== "" || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
 }
 
 // Natural language date/time extraction (Greek + English)
