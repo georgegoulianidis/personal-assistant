@@ -714,10 +714,7 @@ export default function App() {
                 <Check size={12} strokeWidth={2.5} /> Saved
               </div>
             )}
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <p className="text-sm flex-1" style={{ color: "#7a7260" }}>
-                Add people you mention often. They'll be auto-detected in tasks and added as calendar guests.
-              </p>
+            <div className="flex items-start justify-end gap-3 mb-4">
               <div className="flex flex-wrap gap-2 justify-end flex-shrink-0">
                 {contacts.length > 0 && (
                   <button
@@ -787,6 +784,9 @@ export default function App() {
                   <Plus size={18} strokeWidth={2} />
                 </button>
               </div>
+              <p className="text-xs mt-2" style={{ color: "#9a8f7a" }}>
+                Add people you mention often. They'll be auto-detected in tasks and added as calendar guests.
+              </p>
             </div>
 
             {contacts.length > 3 && (
