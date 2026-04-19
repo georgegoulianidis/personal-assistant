@@ -764,7 +764,7 @@ export default function App() {
               <input
                 value={newContactName}
                 onChange={(e) => setNewContactName(e.target.value)}
-                placeholder="Name (e.g. Στέλλα)"
+                placeholder="Name"
                 className="w-full px-4 py-3 rounded-2xl outline-none text-[15px]"
                 style={{ background: "#fbf8f0", border: "1px solid #e8e1cf", color: "#2b2820" }}
               />
@@ -1086,7 +1086,7 @@ export default function App() {
             <textarea
               value={bulkText}
               onChange={(e) => setBulkText(e.target.value)}
-              placeholder={"Στέλλα, stella@gmail.com\nKaroline <karoline@tekla.dk>\njonas@tekla.dk"}
+              placeholder={"Jane Doe, jane@example.com\nJohn Smith <john@example.com>\ncontact@example.com"}
               rows={8}
               className="w-full px-3 py-2.5 rounded-lg text-sm outline-none mb-3 resize-none font-mono"
               style={{ background: "#fbf8f0", border: "1px solid #e8e1cf", color: "#2b2820" }}
