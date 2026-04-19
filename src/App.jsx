@@ -596,7 +596,6 @@ export default function App() {
                     </span>
                     <button
                       onClick={() => removeNote(n.id)}
-                      className="opacity-0 group-hover:opacity-100 transition"
                       style={{ color: "#9a8f7a" }}
                     >
                       <Trash2 size={14} strokeWidth={1.8} />
@@ -775,7 +774,7 @@ export default function App() {
                       </div>
                       <button
                         onClick={() => startEdit(c)}
-                        className="opacity-0 group-hover:opacity-100 transition flex-shrink-0"
+                        className="flex-shrink-0"
                         style={{ color: "#7a7260" }}
                         title="Edit"
                       >
@@ -783,7 +782,7 @@ export default function App() {
                       </button>
                       <button
                         onClick={() => removeContact(c.id)}
-                        className="opacity-0 group-hover:opacity-100 transition flex-shrink-0"
+                        className="flex-shrink-0"
                         style={{ color: "#9a8f7a" }}
                         title="Delete"
                       >
